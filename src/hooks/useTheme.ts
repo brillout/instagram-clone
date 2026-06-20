@@ -16,7 +16,7 @@ export function useTheme() {
     document.documentElement.setAttribute('data-theme', theme)
     document.querySelector('meta[name="theme-color"]')?.setAttribute(
       'content',
-      theme === 'dark' ? '#000000' : '#ffffff',
+      theme === 'dark' ? '#15100d' : '#fff7f0',
     )
     localStorage.setItem(KEY, theme)
   }, [theme])

@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
   <defs>
     <radialGradient id="g" cx="30%" cy="107%" r="150%">
-      <stop offset="0%" stop-color="#fdf497" />
-      <stop offset="5%" stop-color="#fdf497" />
-      <stop offset="45%" stop-color="#fd5949" />
-      <stop offset="60%" stop-color="#d6249f" />
-      <stop offset="90%" stop-color="#285AEB" />
+      <stop offset="0%" stop-color="#f9d976" />
+      <stop offset="35%" stop-color="#ff9a5a" />
+      <stop offset="65%" stop-color="#ff6b4a" />
+      <stop offset="100%" stop-color="#ff3b6b" />
     </radialGradient>
   </defs>
   <rect width="48" height="48" rx="14" fill="url(#g)" />
