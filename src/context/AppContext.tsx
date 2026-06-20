@@ -8,20 +8,15 @@ import {
   type ReactNode,
 } from 'react'
 import type { Comment, Post, Story, User } from '../types'
-import {
-  CURRENT_USER_ID,
-  initialFollowing,
-  posts as seedPosts,
-  stories as seedStories,
-  users as seedUsers,
-} from '../data/seed'
+import { api } from '../api/client'
+import { useAuth } from './AuthContext'
+import { useUI } from './UIContext'
 
-const STORAGE_KEY = 'instagram-clone:v1'
-
-interface PersistedState {
-  posts: Post[]
-  stories: Story[]
-  following: string[]
+export interface NewPostInput {
+  files: File[]
+  imageUrls: string[]
+  caption: string
+  location?: string
 }
 
 interface AppContextValue {
@@ -41,53 +36,46 @@ interface AppContextValue {
   toggleSave: (postId: string) => void
   toggleFollow: (userId: string) => void
   addComment: (postId: string, text: string) => void
-  addPost: (input: { images: string[]; caption: string; location?: string }) => Post
+  addPost: (input: NewPostInput) => Promise<Post>
   markStorySeen: (storyId: string) => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
 
-function loadState(): PersistedState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<PersistedState>
-      if (Array.isArray(parsed.posts) && Array.isArray(parsed.stories)) {
-        return {
-          posts: parsed.posts,
-          stories: parsed.stories,
-          following: parsed.following ?? initialFollowing,
-        }
-      }
-    }
-  } catch {
-    /* corrupt storage — fall back to seed */
-  }
-  return { posts: seedPosts, stories: seedStories, following: initialFollowing }
-}
-
-let idCounter = 0
-const uid = (prefix: string) =>
-  `${prefix}_${Date.now().toString(36)}_${(idCounter++).toString(36)}`
-
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [{ posts, stories, following }, setState] = useState(loadState)
+  const { user } = useAuth()
+  const { showToast } = useUI()
+  const meId = user!.id
 
-  // Users are static (no signup flow) so they live outside persisted state.
-  const users = seedUsers
+  const [users, setUsers] = useState<User[]>([])
+  const [posts, setPosts] = useState<Post[]>([])
+  const [stories, setStories] = useState<Story[]>([])
+  const [following, setFollowing] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const data: PersistedState = { posts, stories, following }
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-    } catch {
-      /* storage full or unavailable — ignore */
+    let cancelled = false
+    setLoading(true)
+    api
+      .get('/bootstrap')
+      .then((data) => {
+        if (cancelled) return
+        setUsers(data.users)
+        setPosts(data.posts)
+        setStories(data.stories)
+        setFollowing(data.following)
+      })
+      .catch(() => showToast('Failed to load feed'))
+      .finally(() => !cancelled && setLoading(false))
+    return () => {
+      cancelled = true
     }
-  }, [posts, stories, following])
+  }, [meId, showToast])
 
+  // The signed-in user, always present in the bootstrapped users list.
   const currentUser = useMemo(
-    () => users.find((u) => u.id === CURRENT_USER_ID)!,
-    [users],
+    () => users.find((u) => u.id === meId) ?? user!,
+    [users, meId, user],
   )
 
   const getUser = useCallback((id: string) => users.find((u) => u.id === id), [users])
@@ -95,112 +83,150 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (username: string) => users.find((u) => u.username === username),
     [users],
   )
-
   const postsByUser = useCallback(
     (userId: string) => posts.filter((p) => p.userId === userId),
     [posts],
   )
-
   const savedPosts = useMemo(
-    () => posts.filter((p) => p.savedBy.includes(CURRENT_USER_ID)),
-    [posts],
+    () => posts.filter((p) => p.savedBy.includes(meId)),
+    [posts, meId],
   )
 
-  const isLiked = useCallback((post: Post) => post.likedBy.includes(CURRENT_USER_ID), [])
-  const isSaved = useCallback((post: Post) => post.savedBy.includes(CURRENT_USER_ID), [])
-  const isFollowing = useCallback(
-    (userId: string) => following.includes(userId),
-    [following],
-  )
-
-  const updatePost = useCallback((postId: string, updater: (p: Post) => Post) => {
-    setState((prev) => ({
-      ...prev,
-      posts: prev.posts.map((p) => (p.id === postId ? updater(p) : p)),
-    }))
-  }, [])
+  const isLiked = useCallback((post: Post) => post.likedBy.includes(meId), [meId])
+  const isSaved = useCallback((post: Post) => post.savedBy.includes(meId), [meId])
+  const isFollowing = useCallback((id: string) => following.includes(id), [following])
 
   const toggleLike = useCallback(
     (postId: string) => {
-      updatePost(postId, (p) => {
-        const liked = p.likedBy.includes(CURRENT_USER_ID)
-        return {
-          ...p,
-          likedBy: liked
-            ? p.likedBy.filter((id) => id !== CURRENT_USER_ID)
-            : [...p.likedBy, CURRENT_USER_ID],
-        }
+      let prev: Post | undefined
+      setPosts((list) =>
+        list.map((p) => {
+          if (p.id !== postId) return p
+          prev = p
+          const liked = p.likedBy.includes(meId)
+          return {
+            ...p,
+            likedBy: liked
+              ? p.likedBy.filter((id) => id !== meId)
+              : [...p.likedBy, meId],
+          }
+        }),
+      )
+      api.post(`/posts/${postId}/like`).catch(() => {
+        showToast('Could not update like')
+        setPosts((list) => list.map((p) => (p.id === postId && prev ? prev : p)))
       })
     },
-    [updatePost],
+    [meId, showToast],
   )
 
   const toggleSave = useCallback(
     (postId: string) => {
-      updatePost(postId, (p) => {
-        const saved = p.savedBy.includes(CURRENT_USER_ID)
-        return {
-          ...p,
-          savedBy: saved
-            ? p.savedBy.filter((id) => id !== CURRENT_USER_ID)
-            : [...p.savedBy, CURRENT_USER_ID],
-        }
+      let prev: Post | undefined
+      setPosts((list) =>
+        list.map((p) => {
+          if (p.id !== postId) return p
+          prev = p
+          const saved = p.savedBy.includes(meId)
+          return {
+            ...p,
+            savedBy: saved
+              ? p.savedBy.filter((id) => id !== meId)
+              : [...p.savedBy, meId],
+          }
+        }),
+      )
+      api.post(`/posts/${postId}/save`).catch(() => {
+        showToast('Could not update saved')
+        setPosts((list) => list.map((p) => (p.id === postId && prev ? prev : p)))
       })
     },
-    [updatePost],
+    [meId, showToast],
+  )
+
+  const toggleFollow = useCallback(
+    (userId: string) => {
+      if (userId === meId) return
+      const wasFollowing = following.includes(userId)
+      // Optimistically update the follow list and both users' counts.
+      setFollowing((list) =>
+        wasFollowing ? list.filter((id) => id !== userId) : [...list, userId],
+      )
+      setUsers((list) =>
+        list.map((u) => {
+          if (u.id === userId) {
+            return { ...u, followers: u.followers + (wasFollowing ? -1 : 1) }
+          }
+          if (u.id === meId) {
+            return { ...u, following: u.following + (wasFollowing ? -1 : 1) }
+          }
+          return u
+        }),
+      )
+      api.post(`/users/${userId}/follow`).catch(() => {
+        showToast('Could not update follow')
+        setFollowing((list) =>
+          wasFollowing ? [...list, userId] : list.filter((id) => id !== userId),
+        )
+        setUsers((list) =>
+          list.map((u) => {
+            if (u.id === userId) {
+              return { ...u, followers: u.followers + (wasFollowing ? 1 : -1) }
+            }
+            if (u.id === meId) {
+              return { ...u, following: u.following + (wasFollowing ? 1 : -1) }
+            }
+            return u
+          }),
+        )
+      })
+    },
+    [meId, following, showToast],
   )
 
   const addComment = useCallback(
     (postId: string, text: string) => {
       const trimmed = text.trim()
       if (!trimmed) return
-      const comment: Comment = {
-        id: uid('c'),
-        userId: CURRENT_USER_ID,
-        text: trimmed,
-        createdAt: Date.now(),
-        likes: 0,
-      }
-      updatePost(postId, (p) => ({ ...p, comments: [...p.comments, comment] }))
+      api
+        .post(`/posts/${postId}/comments`, { text: trimmed })
+        .then(({ comment }: { comment: Comment }) => {
+          setPosts((list) =>
+            list.map((p) =>
+              p.id === postId ? { ...p, comments: [...p.comments, comment] } : p,
+            ),
+          )
+        })
+        .catch(() => showToast('Could not post comment'))
     },
-    [updatePost],
+    [showToast],
   )
 
-  const toggleFollow = useCallback((userId: string) => {
-    if (userId === CURRENT_USER_ID) return
-    setState((prev) => ({
-      ...prev,
-      following: prev.following.includes(userId)
-        ? prev.following.filter((id) => id !== userId)
-        : [...prev.following, userId],
-    }))
+  const addPost = useCallback(async (input: NewPostInput): Promise<Post> => {
+    const form = new FormData()
+    form.append('caption', input.caption)
+    if (input.location) form.append('location', input.location)
+    for (const file of input.files) form.append('images', file)
+    for (const url of input.imageUrls) form.append('images', url)
+    const { post } = await api.upload('/posts', form)
+    setPosts((list) => [post, ...list])
+    return post
   }, [])
-
-  const addPost = useCallback(
-    (input: { images: string[]; caption: string; location?: string }) => {
-      const post: Post = {
-        id: uid('p'),
-        userId: CURRENT_USER_ID,
-        images: input.images,
-        caption: input.caption,
-        location: input.location,
-        createdAt: Date.now(),
-        likedBy: [],
-        savedBy: [],
-        comments: [],
-      }
-      setState((prev) => ({ ...prev, posts: [post, ...prev.posts] }))
-      return post
-    },
-    [],
-  )
 
   const markStorySeen = useCallback((storyId: string) => {
-    setState((prev) => ({
-      ...prev,
-      stories: prev.stories.map((s) => (s.id === storyId ? { ...s, seen: true } : s)),
-    }))
+    setStories((list) =>
+      list.map((s) => (s.id === storyId ? { ...s, seen: true } : s)),
+    )
+    api.post(`/stories/${storyId}/seen`).catch(() => {})
   }, [])
+
+  if (loading) {
+    return (
+      <div className="app-splash">
+        <div className="spinner" />
+      </div>
+    )
+  }
 
   const value: AppContextValue = {
     currentUser,

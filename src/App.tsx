@@ -1,7 +1,9 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
+import { useAuth } from './context/AuthContext'
+import { AppProvider } from './context/AppContext'
+import { UIProvider, useUI } from './context/UIContext'
 import { useTheme } from './hooks/useTheme'
-import { useUI } from './context/UIContext'
 import Sidebar from './components/Sidebar'
 import { MobileHeader, MobileTabBar } from './components/MobileNav'
 import SearchPanel from './components/SearchPanel'
@@ -11,17 +13,40 @@ import StoryViewer from './components/StoryViewer'
 import Home from './pages/Home'
 import Explore from './pages/Explore'
 import Profile from './pages/Profile'
+import Auth from './pages/Auth'
 
 export default function App() {
+  const { user, loading } = useAuth()
+  // Theme is owned here so it applies app-wide, including the auth screen.
   const { theme, toggle } = useTheme()
-  const {
-    searchOpen,
-    closeSearch,
-    createOpen,
-    detailPostId,
-    storyIndex,
-    toast,
-  } = useUI()
+
+  if (loading) {
+    return (
+      <div className="app-splash">
+        <div className="spinner" />
+      </div>
+    )
+  }
+
+  if (!user) return <Auth />
+
+  return (
+    <UIProvider>
+      <AppProvider>
+        <Shell theme={theme} onToggleTheme={toggle} />
+      </AppProvider>
+    </UIProvider>
+  )
+}
+
+function Shell({
+  theme,
+  onToggleTheme,
+}: {
+  theme: 'light' | 'dark'
+  onToggleTheme: () => void
+}) {
+  const { searchOpen, closeSearch, createOpen, detailPostId, storyIndex, toast } = useUI()
   const location = useLocation()
 
   // Close the search panel whenever the route changes.
@@ -37,7 +62,7 @@ export default function App() {
 
   return (
     <div className="app" data-nav={searchOpen ? 'collapsed' : 'expanded'}>
-      <Sidebar theme={theme} onToggleTheme={toggle} />
+      <Sidebar theme={theme} onToggleTheme={onToggleTheme} />
       <MobileHeader />
 
       {searchOpen && (

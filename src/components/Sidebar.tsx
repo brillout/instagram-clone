@@ -3,13 +3,14 @@ import {
   Compass,
   Home,
   Instagram,
-  Menu,
+  LogOut,
   Moon,
   PlusSquare,
   Search,
   Sun,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 
 interface SidebarProps {
@@ -19,6 +20,7 @@ interface SidebarProps {
 
 export default function Sidebar({ theme, onToggleTheme }: SidebarProps) {
   const { currentUser } = useApp()
+  const { logout } = useAuth()
   const { openCreate, toggleSearch, searchOpen } = useUI()
   const location = useLocation()
 
@@ -95,9 +97,9 @@ export default function Sidebar({ theme, onToggleTheme }: SidebarProps) {
         )}
         <span className="nav-label">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
       </button>
-      <button className="nav-item">
-        <Menu className="nav-icon" size={26} strokeWidth={1.6} />
-        <span className="nav-label">More</span>
+      <button className="nav-item" onClick={() => void logout()}>
+        <LogOut className="nav-icon" size={26} strokeWidth={1.6} />
+        <span className="nav-label">Log out</span>
       </button>
     </aside>
   )
