@@ -2,21 +2,21 @@
    Design tokens
    ============================================================ */
 :root {
-  --bg: #ffffff;
+  --bg: #fff7f0;
   --bg-elevated: #ffffff;
-  --bg-muted: #fafafa;
-  --bg-hover: #f5f5f5;
-  --text: #262626;
-  --text-secondary: #737373;
-  --text-tertiary: #8e8e8e;
-  --border: #dbdbdb;
-  --border-strong: #c7c7c7;
-  --blue: #0095f6;
-  --blue-hover: #1877f2;
-  --red: #ed4956;
-  --separator: #efefef;
-  --story-ring: linear-gradient(45deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5);
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --bg-muted: #fdeee3;
+  --bg-hover: #f7e7d9;
+  --text: #2b2320;
+  --text-secondary: #7a6a60;
+  --text-tertiary: #a89589;
+  --border: #ecd9c9;
+  --border-strong: #ddc1ad;
+  --accent: #ff6b4a;
+  --accent-strong: #f5512e;
+  --like: #ff3b6b;
+  --separator: #f4e5d8;
+  --story-ring: linear-gradient(45deg, #f9d976, #ff9a5a, #ff6b4a, #ff3b6b, #c9489f);
+  --shadow: 0 6px 28px rgba(150, 70, 35, 0.14);
   --radius: 8px;
   --header-h: 60px;
   --sidebar-w: 244px;
@@ -26,17 +26,17 @@
 }
 
 [data-theme='dark'] {
-  --bg: #000000;
-  --bg-elevated: #1a1a1a;
-  --bg-muted: #121212;
-  --bg-hover: #1a1a1a;
-  --text: #f5f5f5;
-  --text-secondary: #a8a8a8;
-  --text-tertiary: #8e8e8e;
-  --border: #363636;
-  --border-strong: #4d4d4d;
-  --separator: #262626;
-  --shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  --bg: #15100d;
+  --bg-elevated: #211913;
+  --bg-muted: #1b1410;
+  --bg-hover: #2a1f18;
+  --text: #f7ece3;
+  --text-secondary: #c2ab9c;
+  --text-tertiary: #91796b;
+  --border: #3a2c23;
+  --border-strong: #503d31;
+  --separator: #2a1f18;
+  --shadow: 0 6px 28px rgba(0, 0, 0, 0.6);
 }
 
 /* ============================================================
@@ -99,7 +99,7 @@ ul {
 }
 
 :focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -116,7 +116,7 @@ ul {
    Shared atoms
    ============================================================ */
 .btn-primary {
-  background: var(--blue);
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
   border-radius: 8px;
@@ -125,7 +125,7 @@ ul {
   transition: opacity 0.1s ease, background 0.1s ease;
 }
 .btn-primary:hover {
-  background: var(--blue-hover);
+  background: var(--accent-strong);
 }
 .btn-primary:disabled {
   opacity: 0.4;
@@ -145,7 +145,7 @@ ul {
 }
 
 .btn-text {
-  color: var(--blue);
+  color: var(--accent);
   font-weight: 600;
   font-size: 14px;
 }
@@ -183,16 +183,18 @@ ul {
 }
 
 .logo {
-  font-family: 'Grand Hotel', 'Segoe Script', 'Snell Roundhand', cursive;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia,
+    'Times New Roman', serif;
   font-size: 29px;
-  font-weight: 400;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  font-style: italic;
+  letter-spacing: 0.2px;
   color: var(--text);
   line-height: 1;
 }
 
 .verified-badge {
-  color: var(--blue);
+  color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -426,7 +428,7 @@ ul {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--blue);
+  background: var(--accent);
   color: #fff;
   display: grid;
   place-items: center;
@@ -521,8 +523,8 @@ ul {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.75);
-  color: #262626;
+  background: rgba(255, 255, 255, 0.8);
+  color: #2b2320;
   display: grid;
   place-items: center;
   z-index: 2;
@@ -622,8 +624,8 @@ ul {
   flex: 1;
 }
 .heart-active {
-  color: var(--red);
-  fill: var(--red);
+  color: var(--like);
+  fill: var(--like);
   animation: heart-beat 0.35s ease;
 }
 @keyframes heart-beat {
@@ -763,12 +765,12 @@ ul {
 }
 .aside-footer {
   margin-top: 24px;
-  color: #c7c7c7;
+  color: var(--text-tertiary);
   font-size: 12px;
   line-height: 1.6;
 }
 .aside-footer a {
-  color: #c7c7c7;
+  color: var(--text-tertiary);
 }
 .aside-footer .dot {
   margin: 0 3px;
@@ -1166,7 +1168,7 @@ ul {
 .story-viewer {
   width: min(420px, 100%);
   height: min(86vh, 760px);
-  background: #1a1a1a;
+  background: #241a14;
   border-radius: 8px;
   position: relative;
   overflow: hidden;
@@ -1317,7 +1319,7 @@ ul {
   bottom: 28px;
   left: 50%;
   transform: translateX(-50%);
-  background: #1f1f1f;
+  background: #2b2320;
   color: #fff;
   padding: 14px 20px;
   border-radius: 8px;
@@ -1564,14 +1566,14 @@ ul {
   border-color: var(--border-strong);
 }
 .auth-error {
-  color: var(--red);
+  color: var(--like);
   font-size: 13px;
   text-align: center;
   margin: 4px 0 0;
 }
 .auth-submit {
   margin-top: 8px;
-  background: var(--blue);
+  background: var(--accent);
   color: #fff;
   font-weight: 600;
   border-radius: 8px;
@@ -1586,7 +1588,7 @@ ul {
 .auth-demo {
   display: block;
   margin: 16px auto 0;
-  color: var(--blue);
+  color: var(--accent);
   font-weight: 600;
   font-size: 13px;
 }
@@ -1596,7 +1598,7 @@ ul {
   font-size: 14px;
 }
 .auth-switch button {
-  color: var(--blue);
+  color: var(--accent);
   font-weight: 600;
 }
 .auth-hint {

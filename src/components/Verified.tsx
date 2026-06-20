@@ -6,7 +6,7 @@ export default function Verified({ size = 12 }: { size?: number }) {
     <BadgeCheck
       className="verified-badge"
       size={size}
-      fill="#0095f6"
+      fill="#ff6b4a"
       color="#fff"
       aria-label="Verified"
     />
