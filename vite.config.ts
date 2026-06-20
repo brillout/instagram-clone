@@ -7,5 +7,13 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      // Proxy API + uploaded images to the backend so the browser stays
+      // same-origin (session cookies just work, no CORS dance).
+      '/api': {
+        target: process.env.VITE_API_TARGET ?? 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
 })

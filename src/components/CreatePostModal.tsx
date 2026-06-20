@@ -1,17 +1,18 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ImagePlus, Loader2, MapPin } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useUI } from '../context/UIContext'
-import { fileToScaledDataUrl } from '../utils/image'
 import Modal from './Modal'
 
-/** A couple of stock images so the demo works even without picking a file. */
-const SAMPLE_IMAGES = [
-  'https://picsum.photos/seed/create-a/640/640',
-  'https://picsum.photos/seed/create-b/640/640',
-  'https://picsum.photos/seed/create-c/640/640',
-]
+interface Item {
+  id: string
+  url: string
+  file?: File
+}
+
+/** A sample photo so the demo works even without picking a file. */
+const SAMPLE_IMAGE = 'https://picsum.photos/seed/create-' + Math.floor(Math.random() * 999) + '/640/640'
 
 export default function CreatePostModal() {
   const { currentUser, addPost } = useApp()
@@ -19,51 +20,71 @@ export default function CreatePostModal() {
   const navigate = useNavigate()
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const [images, setImages] = useState<string[]>([])
+  const [items, setItems] = useState<Item[]>([])
   const [caption, setCaption] = useState('')
   const [location, setLocation] = useState('')
-  const [processing, setProcessing] = useState(false)
+  const [sharing, setSharing] = useState(false)
 
-  const onFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return
-    const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'))
-    if (imageFiles.length === 0) return
-    setProcessing(true)
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+
+  // Revoke any object URLs we created when the modal unmounts.
+  useEffect(() => {
+    return () => {
+      for (const item of itemsRef.current) {
+        if (item.file) URL.revokeObjectURL(item.url)
+      }
+    }
+  }, [])
+
+  const onFiles = (files: FileList | null) => {
+    if (!files) return
+    const next: Item[] = Array.from(files)
+      .filter((f) => f.type.startsWith('image/'))
+      .map((file) => ({
+        id: crypto.randomUUID(),
+        url: URL.createObjectURL(file),
+        file,
+      }))
+    if (next.length) setItems((prev) => [...prev, ...next])
+  }
+
+  const share = async () => {
+    if (items.length === 0 || sharing) return
+    setSharing(true)
     try {
-      const urls = await Promise.all(imageFiles.map(fileToScaledDataUrl))
-      setImages((prev) => [...prev, ...urls])
+      await addPost({
+        files: items.filter((i) => i.file).map((i) => i.file as File),
+        imageUrls: items.filter((i) => !i.file).map((i) => i.url),
+        caption,
+        location: location.trim() || undefined,
+      })
+      showToast('Your post has been shared.')
+      closeCreate()
+      navigate(`/${currentUser.username}`)
     } catch {
-      showToast('Could not process that image.')
-    } finally {
-      setProcessing(false)
+      showToast('Could not share your post.')
+      setSharing(false)
     }
   }
 
-  const share = () => {
-    if (images.length === 0) return
-    addPost({ images, caption, location: location.trim() || undefined })
-    showToast('Your post has been shared.')
-    closeCreate()
-    navigate(`/${currentUser.username}`)
-  }
-
-  const composing = images.length > 0
+  const composing = items.length > 0
 
   return (
     <Modal onClose={closeCreate}>
       <div className="create-modal">
         <div className="create-head">
-          {composing ? (
-            <button className="icon-btn" onClick={() => setImages([])} aria-label="Back">
+          {composing && !sharing ? (
+            <button className="icon-btn" onClick={() => setItems([])} aria-label="Back">
               <ChevronLeft size={24} />
             </button>
           ) : (
             <span style={{ width: 24 }} />
           )}
-          <span className="title">{composing ? 'Create new post' : 'Create new post'}</span>
+          <span className="title">Create new post</span>
           {composing ? (
-            <button className="btn-text" onClick={share}>
-              Share
+            <button className="btn-text" onClick={share} disabled={sharing}>
+              {sharing ? 'Sharing…' : 'Share'}
             </button>
           ) : (
             <span style={{ width: 40 }} />
@@ -80,22 +101,16 @@ export default function CreatePostModal() {
                 onFiles(e.dataTransfer.files)
               }}
             >
-              {processing ? (
-                <Loader2 size={56} className="muted spin" />
-              ) : (
-                <ImagePlus size={88} strokeWidth={1} className="muted" />
-              )}
-              <p>{processing ? 'Processing…' : 'Drag photos here'}</p>
-              <button
-                className="btn-primary"
-                disabled={processing}
-                onClick={() => fileInput.current?.click()}
-              >
+              <ImagePlus size={88} strokeWidth={1} className="muted" />
+              <p>Drag photos here</p>
+              <button className="btn-primary" onClick={() => fileInput.current?.click()}>
                 Select from computer
               </button>
               <button
                 className="btn-secondary"
-                onClick={() => setImages([SAMPLE_IMAGES[0]])}
+                onClick={() =>
+                  setItems([{ id: crypto.randomUUID(), url: SAMPLE_IMAGE }])
+                }
               >
                 Use a sample photo
               </button>
@@ -111,7 +126,12 @@ export default function CreatePostModal() {
           ) : (
             <>
               <div className="create-preview">
-                <img src={images[0]} alt="Selected" />
+                <img src={items[0].url} alt="Selected" />
+                {sharing && (
+                  <div className="create-uploading">
+                    <Loader2 size={40} className="spin" />
+                  </div>
+                )}
               </div>
               <div className="create-side">
                 <div className="create-author">
@@ -133,10 +153,10 @@ export default function CreatePostModal() {
                   />
                   <MapPin size={18} className="muted" />
                 </div>
-                {images.length > 1 && (
+                {items.length > 1 && (
                   <div className="thumbs">
-                    {images.map((src, i) => (
-                      <img key={i} src={src} alt={`Selected ${i + 1}`} />
+                    {items.map((item) => (
+                      <img key={item.id} src={item.url} alt="" />
                     ))}
                   </div>
                 )}

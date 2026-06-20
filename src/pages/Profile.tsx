@@ -5,11 +5,12 @@ import {
   Grid3x3,
   Heart,
   Layers,
+  LogOut,
   MessageCircle,
-  Settings,
   UserSquare,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 import { useUI } from '../context/UIContext'
 import { formatCount } from '../utils/time'
 import type { Post } from '../types'
@@ -67,6 +68,7 @@ export default function Profile() {
     isFollowing,
     toggleFollow,
   } = useApp()
+  const { logout } = useAuth()
   const [tab, setTab] = useState<Tab>('posts')
 
   const user = username ? getUserByUsername(username) : undefined
@@ -104,9 +106,9 @@ export default function Profile() {
               {isMe ? (
                 <>
                   <button className="btn-secondary">Edit profile</button>
-                  <button className="btn-secondary">View archive</button>
-                  <button className="icon-btn" aria-label="Settings">
-                    <Settings size={22} strokeWidth={1.6} />
+                  <button className="btn-secondary" onClick={() => void logout()}>
+                    <LogOut size={16} strokeWidth={2} style={{ marginRight: 6 }} />
+                    Log out
                   </button>
                 </>
               ) : (
@@ -128,8 +130,7 @@ export default function Profile() {
               <span>{userPosts.length}</span> posts
             </li>
             <li>
-              <span>{formatCount(user.followers + (following && !isMe ? 1 : 0))}</span>{' '}
-              followers
+              <span>{formatCount(user.followers)}</span> followers
             </li>
             <li>
               <span>{formatCount(user.following)}</span> following
